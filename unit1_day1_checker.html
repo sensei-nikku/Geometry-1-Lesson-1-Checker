@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Translations — Checker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#F4F1EC;--surface:#FFF;--border:#D6D0C4;--text:#2C2A26;--muted:#7A756B;--accent:#1B6B93;--accent-lt:#E8F1F5;--ok:#3A7D44;--ok-lt:#E6F2E8;--warn:#C4841D;--warn-lt:#FDF3E4;--err:#B33A3A;--err-lt:#FBEAEA}
+body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+.hdr{background:#1A2332;color:#E8E4DD;padding:14px 20px;position:sticky;top:0;z-index:100}
+.hdr-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.hdr h1{font-size:1.1rem;font-weight:600}.hdr .sub{font-size:.72rem;color:#8A9BB0;margin-top:1px}
+.nav-row{display:flex;gap:4px;align-items:center;flex-wrap:wrap;margin-top:10px;padding-bottom:4px}
+.nav-sep{width:1px;height:20px;background:#3A4556;margin:0 4px}
+.nd{padding:3px 8px;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.6rem;font-weight:600;border:1.5px solid #3A4556;color:#4A5568;background:transparent;cursor:pointer;transition:all .15s;white-space:nowrap}
+.nd:hover{border-color:#8A9BB0;color:#8A9BB0}
+.nd.done{background:var(--ok);border-color:var(--ok);color:#fff}
+.nd.skipped{background:var(--warn);border-color:var(--warn);color:#fff}
+.nd.active{border-color:var(--accent);color:#fff;background:var(--accent)}
+.progress-bar{height:4px;background:#2A3344;border-radius:2px;margin:8px 20px 0;overflow:hidden}
+.progress-fill{height:100%;background:var(--ok);transition:width .4s ease}
+.main{max-width:680px;margin:0 auto;padding:16px 16px 60px}
+.sh{margin:20px 0 12px;padding:10px 16px;background:#1A2332;color:#E8E4DD;border-radius:10px}
+.sh h2{font-size:.9rem;font-weight:600}.sh p{font-size:.72rem;color:#8A9BB0;margin-top:2px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:14px;display:none}
+.card.v{display:block}.card.done{display:block;padding:10px 18px;background:var(--ok-lt);border-color:var(--ok)}.card.done .body{display:none}
+.done-check{color:var(--ok);font-weight:600;font-size:.82rem;display:inline;margin-left:8px}
+.qn{font-family:'JetBrains Mono',monospace;font-size:.72rem;font-weight:500;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+.qp{font-size:1rem;font-weight:600;margin-bottom:4px;line-height:1.5}
+.qp .note{font-weight:400;font-size:.88rem;color:var(--muted);display:block;margin-top:4px}
+.step{margin-bottom:16px;animation:fadeIn .3s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.step-label{font-size:.72rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border:none;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:.88rem;font-weight:600;cursor:pointer;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff}.btn-primary:hover{background:#145A7A}
+.btn-next{background:var(--ok);color:#fff;margin-top:8px}.btn-next:hover{background:#2D6636}
+.btn-skip{background:var(--warn);color:#fff;margin-top:8px;font-size:.82rem;padding:8px 16px}.btn-skip:hover{background:#A56A10}
+.fb{padding:10px 14px;border-radius:8px;font-size:.88rem;margin-top:10px;margin-bottom:10px;line-height:1.5}
+.fb.ok{background:var(--ok-lt);color:var(--ok);border:1px solid var(--ok)}
+.fb.warn{background:var(--warn-lt);color:var(--warn);border:1px solid var(--warn)}
+.fb.err{background:var(--err-lt);color:var(--err);border:1px solid var(--err)}
+.input-row{display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.input-row label{font-weight:600;font-size:.92rem;min-width:30px}
+.input-row input{font-family:'JetBrains Mono',monospace;font-size:1rem;padding:8px 12px;border:2px solid var(--border);border-radius:8px;width:80px;text-align:center}
+.input-row input:focus{outline:none;border-color:var(--accent)}
+.input-row input.correct{border-color:var(--ok);background:var(--ok-lt)}
+.input-row input.wrong{border-color:var(--err);background:var(--err-lt)}
+.coord-group{display:flex;align-items:center;gap:4px;font-family:'JetBrains Mono',monospace;font-size:1rem;font-weight:500}
+.coord-group span{font-weight:600}
+.locked{opacity:.35;pointer-events:none}
+.redirect-banner{background:#FFF3E0;border:2px solid #E65100;border-radius:10px;padding:16px 18px;margin:14px 0;font-size:.95rem;line-height:1.6;color:#BF360C}
+.eq-display{font-family:'JetBrains Mono',monospace;font-size:1.05rem;font-weight:500;padding:12px 16px;background:#f8f6f3;border-radius:8px;margin-bottom:12px;text-align:center;border:1px solid var(--border)}
+.hint-text{font-size:.85rem;color:var(--muted);font-style:italic;margin-bottom:8px}
+</style>
+</head>
+<body>
+<div class="hdr">
+<div class="hdr-top"><div><h1>Translations — Checker</h1><div class="sub">Geometry 1</div></div></div>
+<div class="nav-row" id="nav"></div>
+</div>
+<div class="progress-bar"><div class="progress-fill" id="pbar"></div></div>
+<div class="main" id="main"></div>
+<script>
+// ── PROBLEM DATA ──
+var problems = [
+  // P1: Single point, positive translation
+  { id:'p1', section:'Apply the Rule', title:'Translate a Single Point',
+    prompt:'Apply the translation T⟨5, 2⟩ to point A(1, 3).',
+    note:'Add 5 to the x-coordinate, add 2 to the y-coordinate.',
+    type:'single', rule:[5,2], pts:[{n:'A',x:1,y:3}] },
+  // P2: Single point, negative x
+  { id:'p2', title:'Negative Components',
+    prompt:'Apply the translation T⟨−3, 4⟩ to point B(6, −2).',
+    note:'Negative a means move left.',
+    type:'single', rule:[-3,4], pts:[{n:'B',x:6,y:-2}] },
+  // P3: Triangle translation
+  { id:'p3', title:'Translate a Triangle',
+    prompt:'Apply T⟨2, −5⟩ to △GHJ with G(0, 3), H(4, 6), J(5, 1).',
+    note:'Apply the rule to each vertex.',
+    type:'multi', rule:[2,-5], pts:[{n:'G',x:0,y:3},{n:'H',x:4,y:6},{n:'J',x:5,y:1}] },
+  // P4: Describe the rule (forward)
+  { id:'p4', section:'Describe the Translation', title:'Find the Rule',
+    prompt:'Point K(1, 3) was translated to K′(4, 7). What is the translation rule?',
+    note:'What was added to x? What was added to y?',
+    type:'rule', pre:{x:1,y:3}, img:{x:4,y:7} },
+  // P5: Describe the rule (negative)
+  { id:'p5', title:'Find the Rule (Negatives)',
+    prompt:'Point M(5, 2) was translated to M′(1, −3). What is the translation rule?',
+    note:'If the coordinate decreased, the number is negative.',
+    type:'rule', pre:{x:5,y:2}, img:{x:1,y:-3} },
+  // P6: Quadrilateral
+  { id:'p6', section:'Bigger Shapes', title:'Translate a Quadrilateral',
+    prompt:'Apply T⟨−2, −3⟩ to quadrilateral WXYZ with W(3, 5), X(6, 5), Y(7, 1), Z(2, 1).',
+    note:'Same rule, four vertices.',
+    type:'multi', rule:[-2,-3], pts:[{n:'W',x:3,y:5},{n:'X',x:6,y:5},{n:'Y',x:7,y:1},{n:'Z',x:2,y:1}] },
+  // P7: Backward — find preimage
+  { id:'p7', section:'Work Backward', title:'Find the Preimage',
+    prompt:'After a translation T⟨−3, 4⟩, the image is N′(2, 7). What was the original point N?',
+    note:'Undo the rule: subtract instead of add.',
+    type:'backward', rule:[-3,4], img:{x:2,y:7} },
+  // P8: Word problem
+  { id:'p8', section:'Real World', title:'Drone Navigation',
+    prompt:'A drone is at position (10, 15) on a grid. Air traffic control sends the command: translate ⟨−6, 8⟩. What is the drone\'s new position?',
+    note:'Same math — real context.',
+    type:'single', rule:[-6,8], pts:[{n:'Drone',x:10,y:15}] }
+];
+
+var state = {};
+problems.forEach(function(p){ state[p.id] = {done:false, skipped:false, step:0, attempts:{}}; });
+
+function el(id){ return document.getElementById(id); }
+function ce(tag, cls, html){
+  var e = document.createElement(tag);
+  if(cls) e.className = cls;
+  if(html) e.innerHTML = html;
+  return e;
+}
+
+// ── NAV + PROGRESS ──
+function renderNav(){
+  var nav = el('nav'), cur = null;
+  nav.innerHTML = '';
+  var lastSec = '';
+  problems.forEach(function(p,i){
+    if(p.section && p.section !== lastSec){
+      if(i>0){ var sep = ce('div','nav-sep'); nav.appendChild(sep); }
+      lastSec = p.section;
+    }
+    var b = ce('button','nd', (i+1));
+    if(state[p.id].done) b.classList.add('done');
+    else if(state[p.id].skipped) b.classList.add('skipped');
+    if(!cur && !state[p.id].done && !state[p.id].skipped) cur = p.id;
+    b.onclick = function(){ showProblem(p.id); };
+    nav.appendChild(b);
+  });
+  // Progress
+  var done = problems.filter(function(p){return state[p.id].done;}).length;
+  el('pbar').style.width = (done/problems.length*100)+'%';
+  return cur;
+}
+
+function showProblem(id){
+  // Mark active nav
+  var navBtns = document.querySelectorAll('.nd');
+  navBtns.forEach(function(b,i){ b.classList.remove('active');
+    if(problems[i].id === id) b.classList.add('active');
+  });
+  var main = el('main');
+  main.innerHTML = '';
+  var p = problems.filter(function(q){return q.id===id;})[0];
+  var s = state[id];
+
+  // Section header
+  if(p.section){
+    var sh = ce('div','sh','<h2>'+p.section+'</h2>');
+    main.appendChild(sh);
+  }
+
+  // Card
+  var card = ce('div','card v');
+  var qn = ce('div','qn', 'Problem '+(problems.indexOf(p)+1)+' of '+problems.length);
+  card.appendChild(qn);
+  var qp = ce('div','qp', p.title+'<span class="note">'+p.prompt+'</span>');
+  card.appendChild(qp);
+
+  var body = ce('div','body');
+
+  if(s.done){
+    card.classList.add('done');
+    card.innerHTML = '<div class="qn">Problem '+(problems.indexOf(p)+1)+'</div><div class="qp" style="display:inline">'+p.title+'</div><span class="done-check">✓ Complete</span>';
+    main.appendChild(card);
+    return;
+  }
+
+  // Hint
+  if(p.note){
+    var hint = ce('div','hint-text','💡 '+p.note);
+    body.appendChild(hint);
+  }
+
+  // Build steps based on type
+  if(p.type === 'single'){
+    buildSinglePoint(body, p, s, id);
+  } else if(p.type === 'multi'){
+    buildMultiPoint(body, p, s, id);
+  } else if(p.type === 'rule'){
+    buildFindRule(body, p, s, id);
+  } else if(p.type === 'backward'){
+    buildBackward(body, p, s, id);
+  }
+
+  card.appendChild(body);
+  main.appendChild(card);
+}
+
+// ── STEP BUILDERS ──
+
+function buildSinglePoint(body, p, s, id){
+  var pt = p.pts[0];
+  var ax = pt.x + p.rule[0], ay = pt.y + p.rule[1];
+
+  // Show the equation
+  var eq = ce('div','eq-display', pt.n+'('+pt.x+', '+pt.y+') → '+pt.n+'′( <b>?</b> , <b>?</b> )');
+  body.appendChild(eq);
+
+  // Step 1: write the formula application
+  var s1 = ce('div','step');
+  s1.innerHTML = '<div class="step-label">Step 1 — Apply the rule</div>';
+  var row = ce('div','input-row');
+  row.innerHTML = '<label>'+pt.n+'′(</label>';
+  var inX = document.createElement('input'); inX.type='text'; inX.id=id+'_x'; inX.placeholder='x′';
+  var inY = document.createElement('input'); inY.type='text'; inY.id=id+'_y'; inY.placeholder='y′';
+  row.appendChild(inX);
+  row.innerHTML += '<span>,</span>';
+  row.appendChild(inY);
+  row.innerHTML += '<span>)</span>';
+  // re-append inputs since innerHTML clobbered them
+  s1.appendChild(row);
+
+  // Rebuild row properly
+  s1.innerHTML = '<div class="step-label">Step 1 — Apply the rule</div>';
+  var row2 = ce('div','input-row');
+  var lbl1 = ce('label','',pt.n+'′( ');
+  row2.appendChild(lbl1);
+  var inX2 = document.createElement('input'); inX2.type='text'; inX2.id=id+'_x'; inX2.placeholder='x′';
+  row2.appendChild(inX2);
+  row2.appendChild(ce('span','',', '));
+  var inY2 = document.createElement('input'); inY2.type='text'; inY2.id=id+'_y'; inY2.placeholder='y′';
+  row2.appendChild(inY2);
+  row2.appendChild(ce('span','', ' )'));
+  s1.appendChild(row2);
+
+  var checkBtn = ce('button','btn btn-primary','Check');
+  checkBtn.onclick = function(){
+    var vx = parseInt(inX2.value), vy = parseInt(inY2.value);
+    // Remove old feedback
+    var oldFb = s1.querySelectorAll('.fb'); oldFb.forEach(function(f){f.remove();});
+    inX2.classList.remove('correct','wrong');
+    inY2.classList.remove('correct','wrong');
+
+    if(isNaN(vx) || isNaN(vy)){
+      var fb = ce('div','fb err','Enter both coordinates as numbers.');
+      s1.appendChild(fb); return;
+    }
+    var xOk = vx === ax, yOk = vy === ay;
+    inX2.classList.add(xOk?'correct':'wrong');
+    inY2.classList.add(yOk?'correct':'wrong');
+
+    if(xOk && yOk){
+      var fb = ce('div','fb ok','✓ Correct! '+pt.n+'′('+ax+', '+ay+')');
+      s1.appendChild(fb);
+      markDone(id);
+    } else {
+      s.attempts[0] = (s.attempts[0]||0)+1;
+      if(s.attempts[0]>=2){
+        var fb = ce('div','fb warn','Hint: '+pt.n+'('+pt.x+', '+pt.y+') with rule ⟨'+p.rule[0]+', '+p.rule[1]+'⟩ means ('+pt.x+' + '+(p.rule[0]<0?'('+p.rule[0]+')':p.rule[0])+', '+pt.y+' + '+(p.rule[1]<0?'('+p.rule[1]+')':p.rule[1])+')');
+        s1.appendChild(fb);
+      } else {
+        var fb = ce('div','fb err','Not quite — check your arithmetic. Remember: add '+p.rule[0]+' to x, add '+p.rule[1]+' to y.');
+        s1.appendChild(fb);
+      }
+      if(s.attempts[0]>=3){
+        var fb2 = ce('div','fb warn','Answer: '+pt.n+'′('+ax+', '+ay+'). Study how the rule was applied, then move on.');
+        s1.appendChild(fb2);
+        var skipBtn = ce('button','btn btn-skip','I see it — move on');
+        skipBtn.onclick = function(){ markDone(id); };
+        s1.appendChild(skipBtn);
+      }
+    }
+  };
+  s1.appendChild(checkBtn);
+  body.appendChild(s1);
+}
+
+function buildMultiPoint(body, p, s, id){
+  var step = ce('div','step');
+  step.innerHTML = '<div class="step-label">Apply T⟨'+p.rule[0]+', '+p.rule[1]+'⟩ to each vertex</div>';
+
+  var inputs = [];
+  p.pts.forEach(function(pt, i){
+    var row = ce('div','input-row');
+    row.appendChild(ce('label','',pt.n+'('+pt.x+','+pt.y+') → '+pt.n+'′('));
+    var inX = document.createElement('input'); inX.type='text'; inX.id=id+'_'+i+'x'; inX.placeholder='x′';
+    row.appendChild(inX);
+    row.appendChild(ce('span','',', '));
+    var inY = document.createElement('input'); inY.type='text'; inY.id=id+'_'+i+'y'; inY.placeholder='y′';
+    row.appendChild(inY);
+    row.appendChild(ce('span','',')'));
+    step.appendChild(row);
+    inputs.push({inX:inX, inY:inY, ax:pt.x+p.rule[0], ay:pt.y+p.rule[1], n:pt.n});
+  });
+
+  var checkBtn = ce('button','btn btn-primary','Check All');
+  checkBtn.onclick = function(){
+    var oldFb = step.querySelectorAll('.fb'); oldFb.forEach(function(f){f.remove();});
+    var allOk = true, anyEmpty = false;
+    inputs.forEach(function(inp){
+      inp.inX.classList.remove('correct','wrong');
+      inp.inY.classList.remove('correct','wrong');
+      var vx = parseInt(inp.inX.value), vy = parseInt(inp.inY.value);
+      if(isNaN(vx)||isNaN(vy)){ anyEmpty=true; return; }
+      var xOk = vx===inp.ax, yOk = vy===inp.ay;
+      inp.inX.classList.add(xOk?'correct':'wrong');
+      inp.inY.classList.add(yOk?'correct':'wrong');
+      if(!xOk||!yOk) allOk=false;
+    });
+    if(anyEmpty){ step.appendChild(ce('div','fb err','Fill in all coordinates.')); return; }
+    if(allOk){
+      step.appendChild(ce('div','fb ok','✓ All vertices correct!'));
+      markDone(id);
+    } else {
+      s.attempts[0]=(s.attempts[0]||0)+1;
+      if(s.attempts[0]>=2){
+        var hintStr = inputs.map(function(inp){return inp.n+'′('+inp.ax+', '+inp.ay+')';}).join(', ');
+        step.appendChild(ce('div','fb warn','Hint: the answers are '+hintStr+'. Check which ones you missed.'));
+        var skipBtn = ce('button','btn btn-skip','I see it — move on');
+        skipBtn.onclick=function(){ markDone(id); };
+        step.appendChild(skipBtn);
+      } else {
+        step.appendChild(ce('div','fb err','Some vertices are off. Remember: add '+p.rule[0]+' to each x, add '+p.rule[1]+' to each y.'));
+      }
+    }
+  };
+  step.appendChild(checkBtn);
+  body.appendChild(step);
+}
+
+function buildFindRule(body, p, s, id){
+  var ra = p.img.x - p.pre.x, rb = p.img.y - p.pre.y;
+
+  var eq = ce('div','eq-display','('+p.pre.x+', '+p.pre.y+') → ('+p.img.x+', '+p.img.y+')');
+  body.appendChild(eq);
+
+  var step = ce('div','step');
+  step.innerHTML = '<div class="step-label">What is the translation rule T⟨a, b⟩?</div>';
+  var row = ce('div','input-row');
+  row.appendChild(ce('label','','T⟨'));
+  var inA = document.createElement('input'); inA.type='text'; inA.id=id+'_a'; inA.placeholder='a';
+  row.appendChild(inA);
+  row.appendChild(ce('span','',', '));
+  var inB = document.createElement('input'); inB.type='text'; inB.id=id+'_b'; inB.placeholder='b';
+  row.appendChild(inB);
+  row.appendChild(ce('span','','⟩'));
+  step.appendChild(row);
+
+  var checkBtn = ce('button','btn btn-primary','Check');
+  checkBtn.onclick = function(){
+    var oldFb = step.querySelectorAll('.fb'); oldFb.forEach(function(f){f.remove();});
+    inA.classList.remove('correct','wrong');
+    inB.classList.remove('correct','wrong');
+    var va = parseInt(inA.value), vb = parseInt(inB.value);
+    if(isNaN(va)||isNaN(vb)){ step.appendChild(ce('div','fb err','Enter both values.')); return; }
+    var aOk = va===ra, bOk = vb===rb;
+    inA.classList.add(aOk?'correct':'wrong');
+    inB.classList.add(bOk?'correct':'wrong');
+    if(aOk&&bOk){
+      step.appendChild(ce('div','fb ok','✓ Correct! T⟨'+ra+', '+rb+'⟩'));
+      markDone(id);
+    } else {
+      s.attempts[0]=(s.attempts[0]||0)+1;
+      if(s.attempts[0]>=2){
+        step.appendChild(ce('div','fb warn','Answer: T⟨'+ra+', '+rb+'⟩. The x changed by '+(p.img.x)+' − '+(p.pre.x)+' = '+ra+'. The y changed by '+(p.img.y)+' − '+(p.pre.y)+' = '+rb+'.'));
+        var skipBtn = ce('button','btn btn-skip','I see it — move on');
+        skipBtn.onclick=function(){ markDone(id); };
+        step.appendChild(skipBtn);
+      } else {
+        step.appendChild(ce('div','fb err','Not quite. Ask: what was added to '+p.pre.x+' to get '+p.img.x+'? What was added to '+p.pre.y+' to get '+p.img.y+'?'));
+      }
+    }
+  };
+  step.appendChild(checkBtn);
+  body.appendChild(step);
+}
+
+function buildBackward(body, p, s, id){
+  // Given image and rule, find preimage
+  var ax = p.img.x - p.rule[0], ay = p.img.y - p.rule[1];
+
+  var eq = ce('div','eq-display','T⟨'+p.rule[0]+', '+p.rule[1]+'⟩ gave us N′('+p.img.x+', '+p.img.y+'). Find N.');
+  body.appendChild(eq);
+
+  body.appendChild(ce('div','hint-text','💡 The rule ADDED '+p.rule[0]+' to x and '+p.rule[1]+' to y. To undo it, do the opposite.'));
+
+  var step = ce('div','step');
+  step.innerHTML = '<div class="step-label">Original point N( ? , ? )</div>';
+  var row = ce('div','input-row');
+  row.appendChild(ce('label','','N('));
+  var inX = document.createElement('input'); inX.type='text'; inX.id=id+'_x'; inX.placeholder='x';
+  row.appendChild(inX);
+  row.appendChild(ce('span','',', '));
+  var inY = document.createElement('input'); inY.type='text'; inY.id=id+'_y'; inY.placeholder='y';
+  row.appendChild(inY);
+  row.appendChild(ce('span','',')'));
+  step.appendChild(row);
+
+  var checkBtn = ce('button','btn btn-primary','Check');
+  checkBtn.onclick = function(){
+    var oldFb = step.querySelectorAll('.fb'); oldFb.forEach(function(f){f.remove();});
+    inX.classList.remove('correct','wrong');
+    inY.classList.remove('correct','wrong');
+    var vx = parseInt(inX.value), vy = parseInt(inY.value);
+    if(isNaN(vx)||isNaN(vy)){ step.appendChild(ce('div','fb err','Enter both coordinates.')); return; }
+    var xOk = vx===ax, yOk = vy===ay;
+    inX.classList.add(xOk?'correct':'wrong');
+    inY.classList.add(yOk?'correct':'wrong');
+    if(xOk&&yOk){
+      step.appendChild(ce('div','fb ok','✓ Correct! N('+ax+', '+ay+')'));
+      markDone(id);
+    } else {
+      s.attempts[0]=(s.attempts[0]||0)+1;
+      if(s.attempts[0]>=2){
+        step.appendChild(ce('div','fb warn','Answer: N('+ax+', '+ay+'). We undo: '+p.img.x+' − ('+p.rule[0]+') = '+ax+', and '+p.img.y+' − ('+p.rule[1]+') = '+ay+'.'));
+        var skipBtn = ce('button','btn btn-skip','I see it — move on');
+        skipBtn.onclick=function(){ markDone(id); };
+        step.appendChild(skipBtn);
+      } else {
+        step.appendChild(ce('div','fb err','Not quite. To undo T⟨'+p.rule[0]+', '+p.rule[1]+'⟩, subtract '+p.rule[0]+' from x′ and subtract '+p.rule[1]+' from y′.'));
+      }
+    }
+  };
+  step.appendChild(checkBtn);
+  body.appendChild(step);
+}
+
+function markDone(id){
+  state[id].done = true;
+  var cur = renderNav();
+  // Auto-advance after short delay
+  setTimeout(function(){
+    if(cur) showProblem(cur);
+    else showComplete();
+  }, 800);
+}
+
+function showComplete(){
+  var main = el('main');
+  main.innerHTML = '';
+  var card = ce('div','card v');
+  card.innerHTML = '<div style="text-align:center;padding:24px 0"><div style="font-size:2rem;margin-bottom:12px">🎉</div><div class="qp">All problems complete!</div><div class="hint-text" style="margin-top:8px">Nice work. Put your Chromebook away and grab your journal for reflection.</div></div>';
+  main.appendChild(card);
+}
+
+// ── INIT ──
+var first = renderNav();
+if(first) showProblem(first);
+</script>
+</body>
+</html>
